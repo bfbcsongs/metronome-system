@@ -3,23 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Floating Metronome App</title>
+    <title>Church Floating Metronome with Lineup Categories</title>
 
     <!-- ========================================== -->
     <!-- CATEGORY 1: CSS STYLES                     -->
     <!-- ========================================== -->
     <style>
         :root {
-            --bg-color: #1a1a1a;
-            --card-bg: #2a2a2a;
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
             --accent-color: #00e676;
+            --accent-active: #ffeb3b;
             --accent-danger: #ff5252;
             --text-color: #ffffff;
-            --text-dim: #aaaaaa;
+            --text-dim: #888888;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: system-ui, -apple-system, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0;
@@ -30,11 +31,11 @@
 
         .app-container {
             width: 100%;
-            max-width: 480px;
+            max-width: 520px;
             background: var(--card-bg);
             border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            padding: 24px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
         }
 
         h1, h2 {
@@ -47,48 +48,62 @@
             flex-direction: column;
             align-items: center;
             gap: 15px;
-            margin-bottom: 25px;
         }
 
         .bpm-display {
-            font-size: 48px;
+            font-size: 54px;
             font-weight: bold;
             color: var(--accent-color);
         }
 
-        .btn-group {
+        /* Beat Visualizer Indicators */
+        .beat-visualizer {
             display: flex;
             gap: 10px;
+            margin: 10px 0;
+            min-height: 24px;
+        }
+
+        .beat-dot {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #333;
+            border: 2px solid #555;
+            transition: transform 0.05s, background 0.05s;
+        }
+
+        .beat-dot.accent-dot {
+            border-color: var(--accent-color);
+        }
+
+        .beat-dot.active {
+            background: var(--accent-active);
+            transform: scale(1.3);
+            box-shadow: 0 0 10px var(--accent-active);
+        }
+
+        .beat-dot.active.first-beat {
+            background: var(--accent-color);
+            box-shadow: 0 0 12px var(--accent-color);
+        }
+
+        .setting-group {
+            display: flex;
             align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            width: 100%;
+            justify-content: center;
         }
 
-        button {
-            background-color: #3a3a3a;
-            color: var(--text-color);
-            border: none;
-            padding: 10px 18px;
-            border-radius: 6px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.2s;
+        label {
+            font-size: 14px;
+            color: var(--text-dim);
         }
 
-        button:hover {
-            background-color: #4a4a4a;
-        }
-
-        button.btn-primary {
-            background-color: var(--accent-color);
-            color: #000;
-            font-weight: bold;
-        }
-
-        button.btn-danger {
-            background-color: var(--accent-danger);
-        }
-
-        input[type="text"], input[type="number"] {
-            background: #1a1a1a;
+        select, input[type="text"] {
+            background: #2a2a2a;
             border: 1px solid #444;
             color: #fff;
             padding: 8px 12px;
@@ -96,62 +111,91 @@
             font-size: 14px;
         }
 
-        /* Preset Section Styles */
-        .preset-form {
+        .btn-group {
             display: flex;
-            gap: 8px;
-            margin-bottom: 15px;
+            gap: 10px;
         }
 
-        .preset-form input {
-            flex: 1;
+        button {
+            background-color: #333;
+            color: var(--text-color);
+            border: none;
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
         }
 
-        .preset-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            max-height: 200px;
-            overflow-y: auto;
+        button:hover { background-color: #444; }
+        button.btn-primary { background-color: var(--accent-color); color: #000; font-weight: bold; }
+        button.btn-danger { background-color: var(--accent-danger); }
+
+        /* Category Lineup Sections */
+        .categories-container {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
         }
 
-        .preset-item {
+        .category-card {
+            background: #252525;
+            border: 1px solid #383838;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .category-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: #222;
-            padding: 10px 14px;
-            border-radius: 6px;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        .category-input-row {
+            display: flex;
+            gap: 6px;
             margin-bottom: 8px;
         }
 
-        /* Floating Window Styles */
+        .category-input-row input {
+            flex: 1;
+            padding: 6px 10px;
+            font-size: 13px;
+        }
+
+        .saved-lineup-item {
+            background: #1e1e1e;
+            padding: 6px 10px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            border-left: 3px solid var(--accent-color);
+        }
+
+        /* Floating Overlay Window */
         #floating-widget {
             position: fixed;
             top: 20px;
             right: 20px;
-            background: rgba(20, 20, 20, 0.95);
+            background: rgba(18, 18, 18, 0.95);
             border: 2px solid var(--accent-color);
-            border-radius: 10dp;
-            padding: 10px 14px;
+            border-radius: 10px;
+            padding: 8px 14px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             z-index: 9999;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.8);
             cursor: move;
             user-select: none;
         }
 
-        #floating-widget.hidden {
-            display: none;
-        }
-
-        .drag-handle {
-            font-size: 12px;
-            color: var(--text-dim);
-            margin-right: 4px;
-        }
+        #floating-widget.hidden { display: none; }
     </style>
 </head>
 <body>
@@ -160,48 +204,66 @@
     <!-- CATEGORY 2: MAIN USER INTERFACE HTML       -->
     <!-- ========================================== -->
     <div class="app-container">
-        <h1>Metronome</h1>
+        <h1>Weekly Lineup Metronome</h1>
 
-        <!-- Core Controls -->
         <div class="control-panel">
             <div class="bpm-display"><span id="bpm-text">120</span> <span style="font-size: 18px;">BPM</span></div>
+            
+            <!-- Beat Visualizer Dots -->
+            <div id="beat-visualizer" class="beat-visualizer"></div>
+
             <input type="range" id="bpm-slider" min="30" max="300" value="120" style="width: 80%;">
             
+            <!-- Time Signature Selection -->
+            <div class="setting-group">
+                <label for="time-signature">Beats Per Measure:</label>
+                <select id="time-signature">
+                    <option value="1">1/4 (No Accent)</option>
+                    <option value="2">2/4</option>
+                    <option value="3">3/4 (Waltz)</option>
+                    <option value="4" selected>4/4 (Standard)</option>
+                    <option value="5">5/4</option>
+                    <option value="6">6/8</option>
+                </select>
+            </div>
+
             <div class="btn-group">
                 <button id="btn-minus-five">-5</button>
                 <button id="btn-toggle-play" class="btn-primary">START</button>
                 <button id="btn-plus-five">+5</button>
             </div>
 
-            <button id="btn-toggle-overlay" style="margin-top: 10px;">Toggle Floating Mode</button>
+            <button id="btn-toggle-overlay">Toggle Floating Mode</button>
         </div>
 
         <hr style="border-color: #333; margin: 20px 0;">
 
-        <!-- Preset Management -->
-        <h2>Saved Presets</h2>
-        <div class="preset-form">
-            <input type="text" id="preset-name" placeholder="Preset Name (e.g., Practice Song)">
-            <button id="btn-save-preset">Save</button>
+        <!-- CATEGORY 3: WEEKLY LINEUP SECTIONS MANAGER -->
+        <h2>Weekly Categories</h2>
+        <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+            <input type="text" id="new-category-name" placeholder="New Category Name (e.g., Communion)" style="flex:1;">
+            <button id="btn-add-category" class="btn-primary">+ Add Category</button>
         </div>
-        <ul id="preset-list" class="preset-list"></ul>
+
+        <div id="categories-container" class="categories-container">
+            <!-- Dynamically populated category cards go here -->
+        </div>
     </div>
 
 
     <!-- ========================================== -->
-    <!-- CATEGORY 3: FLOATING OVERLAY WIDGET HTML   -->
+    <!-- CATEGORY 4: FLOATING OVERLAY WIDGET HTML   -->
     <!-- ========================================== -->
     <div id="floating-widget" class="hidden">
-        <span class="drag-handle">⠿</span>
+        <span style="color:#888;">⠿</span>
+        <span id="float-beat-num" style="color:var(--accent-active); font-weight:bold;">1</span>
         <span id="float-bpm-text" style="font-weight: bold; color: var(--accent-color);">120 BPM</span>
-        <button id="btn-float-minus">-</button>
         <button id="btn-float-play" class="btn-primary">▶</button>
-        <button id="btn-float-plus">+</button>
     </div>
 
 
     <!-- ========================================== -->
-    <!-- CATEGORY 4: AUDIO ENGINE (WEB AUDIO API)   -->
+    <!-- CATEGORY 5: AUDIO ENGINE (BEATS & ACCENTS) -->
     <!-- ========================================== -->
     <script>
         class MetronomeAudioEngine {
@@ -209,10 +271,11 @@
                 this.audioCtx = null;
                 this.isPlaying = false;
                 this.bpm = 120;
+                this.beatsPerMeasure = 4;
+                this.currentBeat = 0;
                 this.nextNoteTime = 0.0;
                 this.timerID = null;
-                this.lookahead = 25.0; // Interval in ms to schedule audio
-                this.scheduleAheadTime = 0.1; // Seconds to look ahead
+                this.onBeatCallback = null;
             }
 
             init() {
@@ -221,37 +284,49 @@
                 }
             }
 
-            playClick(time) {
+            playClick(time, beatNumber) {
                 const osc = this.audioCtx.createOscillator();
                 const gain = this.audioCtx.createGain();
 
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(880, time); // High pitched click (A5)
+                if (beatNumber === 0 && this.beatsPerMeasure > 1) {
+                    osc.frequency.setValueAtTime(1200, time); // High accent for beat 1
+                } else {
+                    osc.frequency.setValueAtTime(600, time);  // Normal tick
+                }
+
                 gain.gain.setValueAtTime(1, time);
-                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
 
                 osc.connect(gain);
                 gain.connect(this.audioCtx.destination);
 
                 osc.start(time);
-                osc.stop(time + 0.03);
+                osc.stop(time + 0.04);
             }
 
             scheduler() {
-                while (this.nextNoteTime < this.audioCtx.currentTime + this.scheduleAheadTime) {
-                    this.playClick(this.nextNoteTime);
+                while (this.nextNoteTime < this.audioCtx.currentTime + 0.1) {
+                    this.playClick(this.nextNoteTime, this.currentBeat);
+
+                    if (this.onBeatCallback) {
+                        const beatToVisualizer = this.currentBeat;
+                        const delayMs = Math.max(0, (this.nextNoteTime - this.audioCtx.currentTime) * 1000);
+                        setTimeout(() => this.onBeatCallback(beatToVisualizer), delayMs);
+                    }
+
                     const secondsPerBeat = 60.0 / this.bpm;
                     this.nextNoteTime += secondsPerBeat;
+                    this.currentBeat = (this.currentBeat + 1) % this.beatsPerMeasure;
                 }
-                this.timerID = setTimeout(() => this.scheduler(), this.lookahead);
+                this.timerID = setTimeout(() => this.scheduler(), 25);
             }
 
             start() {
                 this.init();
-                if (this.audioCtx.state === 'suspended') {
-                    this.audioCtx.resume();
-                }
+                if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
                 this.isPlaying = true;
+                this.currentBeat = 0;
                 this.nextNoteTime = this.audioCtx.currentTime + 0.05;
                 this.scheduler();
             }
@@ -267,80 +342,91 @@
 
 
     <!-- ========================================== -->
-    <!-- CATEGORY 5: PRESET STORAGE (LOCALSTORAGE)  -->
+    <!-- CATEGORY 6: STORAGE MANAGER (CATEGORIES)   -->
     <!-- ========================================== -->
     <script>
-        class PresetStore {
+        class LineupStore {
             constructor() {
-                this.storageKey = 'metronome_presets';
+                this.storageKey = 'church_metronome_categories_v1';
+                // Default categories requested by user
+                this.defaultCategories = ['Opening', 'Joyful', 'Solemn', 'Offering', 'Closing'];
             }
 
-            getPresets() {
-                const data = localStorage.getItem(this.storageKey);
-                return data ? JSON.parse(data) : [];
+            getData() {
+                const stored = localStorage.getItem(this.storageKey);
+                if (!stored) {
+                    // Initialize with defaults if empty
+                    const initial = {};
+                    this.defaultCategories.forEach(cat => initial[cat] = null); // 1 active lineup slot per week/category
+                    localStorage.setItem(this.storageKey, JSON.stringify(initial));
+                    return initial;
+                }
+                return JSON.parse(stored);
             }
 
-            savePreset(name, bpm) {
-                const presets = this.getPresets();
-                presets.push({ id: Date.now(), name, bpm });
-                localStorage.setItem(this.storageKey, JSON.stringify(presets));
+            saveLineup(category, songName, bpm, beats) {
+                const data = this.getData();
+                data[category] = { songName, bpm, beats, updatedAt: new Date().toLocaleDateString() };
+                localStorage.setItem(this.storageKey, JSON.stringify(data));
             }
 
-            deletePreset(id) {
-                let presets = this.getPresets();
-                presets = presets.filter(p => p.id !== id);
-                localStorage.setItem(this.storageKey, JSON.stringify(presets));
+            addCategory(categoryName) {
+                const data = this.getData();
+                if (!data[categoryName]) {
+                    data[categoryName] = null;
+                    localStorage.setItem(this.storageKey, JSON.stringify(data));
+                }
+            }
+
+            removeCategory(categoryName) {
+                const data = this.getData();
+                delete data[categoryName];
+                localStorage.setItem(this.storageKey, JSON.stringify(data));
             }
         }
 
-        const presetStore = new PresetStore();
+        const lineupStore = new LineupStore();
     </script>
 
 
     <!-- ========================================== -->
-    <!-- CATEGORY 6: DRAGGABLE FLOATING CONTROLLER  -->
+    <!-- CATEGORY 7: DRAGGABLE FLOATING CONTROLLER  -->
     <!-- ========================================== -->
     <script>
-        function setupDraggableOverlay() {
-            const widget = document.getElementById('floating-widget');
-            let isDragging = false;
-            let offsetX = 0, offsetY = 0;
+        const widget = document.getElementById('floating-widget');
+        let isDragging = false, offX = 0, offY = 0;
 
-            widget.addEventListener('mousedown', (e) => {
-                if (e.target.tagName === 'BUTTON') return; // Prevent drag on button clicks
-                isDragging = true;
-                offsetX = e.clientX - widget.offsetLeft;
-                offsetY = e.clientY - widget.offsetTop;
-            });
+        widget.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            isDragging = true;
+            offX = e.clientX - widget.offsetLeft;
+            offY = e.clientY - widget.offsetTop;
+        });
 
-            document.addEventListener('mousemove', (e) => {
-                if (!isDragging) return;
-                widget.style.left = `${e.clientX - offsetX}px`;
-                widget.style.top = `${e.clientY - offsetY}px`;
-                widget.style.right = 'auto'; // Disable initial right-alignment
-            });
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            widget.style.left = `${e.clientX - offX}px`;
+            widget.style.top = `${e.clientY - offY}px`;
+            widget.style.right = 'auto';
+        });
 
-            document.addEventListener('mouseup', () => {
-                isDragging = false;
-            });
-        }
-
-        setupDraggableOverlay();
+        document.addEventListener('mouseup', () => isDragging = false);
     </script>
 
 
     <!-- ========================================== -->
-    <!-- CATEGORY 7: MAIN APPLICATION BINDINGS     -->
+    <!-- CATEGORY 8: MAIN APP BINDINGS & UI LOGIC   -->
     <!-- ========================================== -->
     <script>
-        // DOM Elements
         const bpmText = document.getElementById('bpm-text');
         const floatBpmText = document.getElementById('float-bpm-text');
+        const floatBeatNum = document.getElementById('float-beat-num');
         const bpmSlider = document.getElementById('bpm-slider');
+        const timeSigSelect = document.getElementById('time-signature');
+        const visualizer = document.getElementById('beat-visualizer');
         const btnTogglePlay = document.getElementById('btn-toggle-play');
         const btnFloatPlay = document.getElementById('btn-float-play');
-        const floatingWidget = document.getElementById('floating-widget');
-        const presetList = document.getElementById('preset-list');
+        const categoriesContainer = document.getElementById('categories-container');
 
         function updateBpm(newBpm) {
             const clamped = Math.min(Math.max(newBpm, 30), 300);
@@ -349,6 +435,33 @@
             floatBpmText.innerText = `${clamped} BPM`;
             bpmSlider.value = clamped;
         }
+
+        function createBeatDots() {
+            visualizer.innerHTML = '';
+            for (let i = 0; i < engine.beatsPerMeasure; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'beat-dot' + (i === 0 ? ' accent-dot' : '');
+                visualizer.appendChild(dot);
+            }
+        }
+
+        engine.onBeatCallback = (beatIndex) => {
+            const dots = visualizer.querySelectorAll('.beat-dot');
+            dots.forEach((dot, idx) => {
+                if (idx === beatIndex) {
+                    dot.classList.add('active');
+                    if (idx === 0) dot.classList.add('first-beat');
+                } else {
+                    dot.classList.remove('active', 'first-beat');
+                }
+            });
+            floatBeatNum.innerText = beatIndex + 1;
+        };
+
+        timeSigSelect.addEventListener('change', (e) => {
+            engine.beatsPerMeasure = parseInt(e.target.value);
+            createBeatDots();
+        });
 
         function togglePlayback() {
             if (engine.isPlaying) {
@@ -364,58 +477,98 @@
             }
         }
 
-        // Event Listeners for BPM updates
+        // Global Event Listeners
         bpmSlider.addEventListener('input', (e) => updateBpm(parseInt(e.target.value)));
         document.getElementById('btn-minus-five').addEventListener('click', () => updateBpm(engine.bpm - 5));
         document.getElementById('btn-plus-five').addEventListener('click', () => updateBpm(engine.bpm + 5));
-        document.getElementById('btn-float-minus').addEventListener('click', () => updateBpm(engine.bpm - 1));
-        document.getElementById('btn-float-plus').addEventListener('click', () => updateBpm(engine.bpm + 1));
-
-        // Play/Pause Listeners
         btnTogglePlay.addEventListener('click', togglePlayback);
         btnFloatPlay.addEventListener('click', togglePlayback);
+        document.getElementById('btn-toggle-overlay').addEventListener('click', () => widget.classList.toggle('hidden'));
 
-        // Toggle Floating Overlay
-        document.getElementById('btn-toggle-overlay').addEventListener('click', () => {
-            floatingWidget.classList.toggle('hidden');
-        });
+        // Render Categories & Weekly Lineup Slots
+        function renderCategories() {
+            categoriesContainer.innerHTML = '';
+            const data = lineupStore.getData();
 
-        // Render Presets
-        function renderPresets() {
-            presetList.innerHTML = '';
-            const presets = presetStore.getPresets();
-            
-            presets.forEach(preset => {
-                const li = document.createElement('li');
-                li.className = 'preset-item';
-                li.innerHTML = `
-                    <span><strong>${preset.name}</strong> (${preset.bpm} BPM)</span>
-                    <div>
-                        <button onclick="updateBpm(${preset.bpm})">Load</button>
-                        <button class="btn-danger" onclick="removePreset(${preset.id})">✕</button>
+            Object.keys(data).forEach(category => {
+                const lineup = data[category];
+                const card = document.createElement('div');
+                card.className = 'category-card';
+
+                let lineupHtml = '';
+                if (lineup) {
+                    lineupHtml = `
+                        <div class="saved-lineup-item">
+                            <span><strong>${lineup.songName}</strong> (${lineup.bpm} BPM, ${lineup.beats}/4)</span>
+                            <div>
+                                <button onclick="loadLineup('${category}')" style="padding:4px 8px; font-size:12px;">Load</button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    lineupHtml = `<div style="font-size:12px; color:var(--text-dim); font-style:italic;">No song saved for this week yet.</div>`;
+                }
+
+                // Do not allow deleting core default categories if desired, or allow all. Let's make user custom categories removable.
+                const isDefault = ['Opening', 'Joyful', 'Solemn', 'Offering', 'Closing'].includes(category);
+                const deleteBtnHtml = !isDefault ? `<button class="btn-danger" onclick="deleteCategory('${category}')" style="padding:2px 6px; font-size:11px;">✕ Remove</button>` : '';
+
+                card.innerHTML = `
+                    <div class="category-header">
+                        <span>${category}</span>
+                        ${deleteBtnHtml}
                     </div>
+                    <div class="category-input-row">
+                        <input type="text" id="song-name-${category}" placeholder="Song Title for this week">
+                        <button class="btn-primary" onclick="saveCategoryLineup('${category}')" style="padding:6px 12px; font-size:13px;">Save</button>
+                    </div>
+                    ${lineupHtml}
                 `;
-                presetList.appendChild(li);
+                categoriesContainer.appendChild(card);
             });
         }
 
-        // Save & Delete Presets
-        document.getElementById('btn-save-preset').addEventListener('click', () => {
-            const nameInput = document.getElementById('preset-name');
-            if (nameInput.value.trim() !== '') {
-                presetStore.savePreset(nameInput.value.trim(), engine.bpm);
-                nameInput.value = '';
-                renderPresets();
+        window.saveCategoryLineup = (category) => {
+            const input = document.getElementById(`song-name-${category}`);
+            const songName = input.value.trim();
+            if (!songName) {
+                alert('Please enter a song title.');
+                return;
+            }
+            lineupStore.saveLineup(category, songName, engine.bpm, engine.beatsPerMeasure);
+            input.value = '';
+            renderCategories();
+        };
+
+        window.loadLineup = (category) => {
+            const data = lineupStore.getData();
+            const lineup = data[category];
+            if (lineup) {
+                updateBpm(lineup.bpm);
+                engine.beatsPerMeasure = lineup.beats;
+                timeSigSelect.value = lineup.beats;
+                createBeatDots();
+            }
+        };
+
+        window.deleteCategory = (category) => {
+            lineupStore.removeCategory(category);
+            renderCategories();
+        };
+
+        document.getElementById('btn-add-category').addEventListener('click', () => {
+            const input = document.getElementById('new-category-name');
+            const catName = input.value.trim();
+            if (catName) {
+                lineupStore.addCategory(catName);
+                input.value = '';
+                renderCategories();
             }
         });
 
-        window.removePreset = function(id) {
-            presetStore.deletePreset(id);
-            renderPresets();
-        };
-
-        // Initialize preset list on load
-        renderPresets();
+        // Initialize App UI
+        createBeatDots();
+        renderCategories();
     </script>
 </body>
 </html>
