@@ -173,9 +173,10 @@
             display: flex;
             gap: 6px;
             margin-bottom: 8px;
+            position: relative;
         }
 
-        .category-input-row select {
+        .category-input-row input {
             flex: 1;
             padding: 6px 10px;
             font-size: 13px;
@@ -234,7 +235,7 @@
         <div class="yt-section">
             <label style="display:block; margin-bottom: 6px; color: #ff5252; font-weight: bold;">YouTube Link Auto-Detect</label>
             <div style="display: flex; gap: 6px; margin-bottom: 8px;">
-                <input type="text" id="yt-link-input" placeholder="Paste YouTube Link (e.g., youtube.com/watch?v=...)" style="flex:1;">
+                <input type="text" id="yt-link-input" placeholder="Paste YouTube Link..." style="flex:1;">
                 <button class="btn-yt" onclick="processYouTubeLink()">Auto-Detect</button>
             </div>
             <div id="yt-detect-status" style="font-size: 12px; color: var(--text-dim); font-style: italic;">I-paste ang link ng kanta para masuri ang tempo at beats.</div>
@@ -283,7 +284,7 @@
 
         <hr style="border-color: #333; margin: 20px 0;">
 
-        <!-- CATEGORY 3: WEEKLY CATEGORIES & SONG SELECTOR -->
+        <!-- CATEGORY 3: WEEKLY CATEGORIES & AUTO-SUGGEST INPUTS -->
         <h2>Weekly Categories</h2>
         <div style="display: flex; gap: 8px; margin-bottom: 15px;">
             <input type="text" id="new-category-name" placeholder="New Category (e.g., Special)" style="flex:1;">
@@ -293,6 +294,9 @@
         <div id="categories-container" class="categories-container">
             <!-- Dynamic Category Cards -->
         </div>
+
+        <!-- Global HTML5 Datalist for Firebase Song Suggestions -->
+        <datalist id="song-bank-datalist"></datalist>
 
         <hr style="border-color: #333; margin: 25px 0 15px 0;">
 
@@ -445,7 +449,7 @@
                 createBeatDots();
 
                 statusDiv.style.color = 'var(--accent-color)';
-                statusDiv.innerText = `✅ Tagumpay! Na-detect: ${detectedBpm} BPM (${detectedBeats}/4 Time Signature). Ilagay na ang pangalan sa ibaba para i-save sa Song Bank!`;
+                statusDiv.innerText = `✅ Tagumpay! Na-detect: ${detectedBpm} BPM (${detectedBeats}/4 Time Signature). I-save na sa ibaba!`;
                 
                 document.getElementById('new-bank-song-title').value = "YouTube Song (" + detectedBpm + " BPM)";
             }, 1500);
@@ -493,6 +497,7 @@
             }
             window.renderSongBank();
             window.renderCategories();
+            window.updateAutoSuggestDatalist();
             statusEl.innerText = "☁️ Firebase Connected (Live Sync Active)";
         }, (error) => {
             statusEl.innerText = "⚠️ Firebase Sync Error";
@@ -516,8 +521,18 @@
                 await setDoc(doc(db, "worship_data", "song_bank"), cloudSongBank);
             },
 
-            async linkSongToCategory(categoryName, songKey) {
-                cloudCategoryLinks[categoryName] = songKey;
+            async linkSongToCategory(categoryName, songTitle) {
+                if (!songTitle.trim()) {
+                    cloudCategoryLinks[categoryName] = null;
+                } else {
+                    const key = songTitle.trim().toLowerCase();
+                    // Kung wala pa sa bank, i-save muna natin automatic gamit ang kasalukuyang BPM
+                    if (!cloudSongBank[key]) {
+                        cloudSongBank[key] = { title: songTitle.trim(), bpm: engine.bpm, beats: engine.beatsPerMeasure };
+                        await setDoc(doc(db, "worship_data", "song_bank"), cloudSongBank);
+                    }
+                    cloudCategoryLinks[categoryName] = key;
+                }
                 await setDoc(doc(db, "worship_data", "category_links"), cloudCategoryLinks);
             },
 
@@ -598,6 +613,7 @@
         const btnTapTempo = document.getElementById('btn-tap-tempo');
         const categoriesContainer = document.getElementById('categories-container');
         const songBankList = document.getElementById('song-bank-list');
+        const songDatalist = document.getElementById('song-bank-datalist');
 
         const tapManager = new TapTempoManager((bpm) => updateBpm(bpm));
 
@@ -654,6 +670,16 @@
         btnTogglePlay.addEventListener('click', togglePlayback);
         btnTapTempo.addEventListener('click', () => tapManager.tap());
 
+        window.updateAutoSuggestDatalist = function() {
+            songDatalist.innerHTML = '';
+            const bank = window.cloudStore ? window.cloudStore.getSongBank() : {};
+            Object.values(bank).forEach(song => {
+                const option = document.createElement('option');
+                option.value = song.title;
+                songDatalist.appendChild(option);
+            });
+        };
+
         window.renderCategories = function() {
             if (!window.cloudStore) return;
             categoriesContainer.innerHTML = '';
@@ -663,6 +689,7 @@
             Object.keys(links).forEach(category => {
                 const selectedSongKey = links[category];
                 const activeSong = selectedSongKey ? bank[selectedSongKey] : null;
+                const currentTitleValue = activeSong ? activeSong.title : '';
 
                 const card = document.createElement('div');
                 card.className = 'category-card';
@@ -670,23 +697,14 @@
                 let lineupHtml = '';
                 if (activeSong) {
                     lineupHtml = `
-                        <div class="saved-lineup-item">
-                            <span><strong>${activeSong.title}</strong> (${activeSong.bpm} BPM, ${activeSong.beats}/4)</span>
+                        <div class="saved-lineup-item" style="margin-top:6px;">
+                            <span>Naka-save: <strong>${activeSong.title}</strong> (${activeSong.bpm} BPM, ${activeSong.beats}/4)</span>
                             <div>
-                                <button onclick="loadSong('${selectedSongKey}')" style="padding:4px 8px; font-size:12px;">Load BPM</button>
+                                <button onclick="loadSong('${selectedSongKey}')" style="padding:3px 6px; font-size:11px;">Load BPM</button>
                             </div>
                         </div>
                     `;
-                } else {
-                    lineupHtml = `<div style="font-size:12px; color:var(--text-dim); font-style:italic;">Walang kanta na naka-link ngayong linggo.</div>`;
                 }
-
-                let optionsHtml = `<option value="">-- Pili ng Kanta sa Bank --</option>`;
-                Object.keys(bank).forEach(key => {
-                    const song = bank[key];
-                    const isSelected = (selectedSongKey === key) ? 'selected' : '';
-                    optionsHtml += `<option value="${key}" ${isSelected}>${song.title} (${song.bpm} BPM)</option>`;
-                });
 
                 const isDefault = ['Opening', 'Joyful', 'Solemn', 'Offering', 'Closing'].includes(category);
                 const deleteBtnHtml = !isDefault ? `<button class="btn-danger" onclick="deleteCategory('${category}')" style="padding:2px 6px; font-size:11px;">✕ Remove</button>` : '';
@@ -697,23 +715,42 @@
                         ${deleteBtnHtml}
                     </div>
                     <div class="category-input-row">
-                        <select id="song-select-${category}" onchange="selectSongForCategory('${category}')">
-                            ${optionsHtml}
-                        </select>
+                        <!-- Searchable Text Input connected to Datalist for Auto-Suggest -->
+                        <input type="text" id="song-input-${category}" list="song-bank-datalist" autocomplete="off" value="${currentTitleValue}" placeholder="I-type o pumili ng kanta..." oninput="autoFillSongData('${category}')">
+                        <button class="btn-primary" onclick="saveCategorySong('${category}')" style="padding:6px 12px; font-size:13px;">Save</button>
                     </div>
                     ${lineupHtml}
                 `;
                 categoriesContainer.appendChild(card);
             });
+            window.updateAutoSuggestDatalist();
         };
 
-        window.selectSongForCategory = async (category) => {
-            const selectEl = document.getElementById(`song-select-${category}`);
-            const songKey = selectEl.value;
-            await window.cloudStore.linkSongToCategory(category, songKey || null);
-            if (songKey) {
-                loadSong(songKey);
+        // Kapag nag-type o pumili mula sa suggestion, auto-load ang BPM kung nasa bank na
+        window.autoFillSongData = (category) => {
+            const inputEl = document.getElementById(`song-input-${category}`);
+            const bank = window.cloudStore.getSongBank();
+            const typedVal = inputEl.value.trim().toLowerCase();
+            
+            Object.keys(bank).forEach(key => {
+                if (key === typedVal) {
+                    const song = bank[key];
+                    updateBpm(song.bpm);
+                    engine.beatsPerMeasure = song.beats;
+                    timeSigSelect.value = song.beats;
+                    createBeatDots();
+                }
+            });
+        };
+
+        window.saveCategorySong = async (category) => {
+            const inputEl = document.getElementById(`song-input-${category}`);
+            const title = inputEl.value.trim();
+            if (!title) {
+                alert('Maglagay o pumili ng pamagat ng kanta.');
+                return;
             }
+            await window.cloudStore.linkSongToCategory(category, title);
         };
 
         window.loadSong = (songKey) => {
