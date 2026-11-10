@@ -169,17 +169,44 @@
             color: var(--accent-color);
         }
 
-        .category-input-row {
+        .category-input-wrapper {
+            position: relative;
             display: flex;
             gap: 6px;
             margin-bottom: 8px;
-            position: relative;
         }
 
-        .category-input-row input {
+        .category-input-wrapper input {
             flex: 1;
             padding: 6px 10px;
             font-size: 13px;
+        }
+
+        /* Custom Dropdown Suggestions Box */
+        .suggestions-box {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 50px;
+            background: #222;
+            border: 1px solid #555;
+            border-radius: 4px;
+            z-index: 100;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .suggestion-item {
+            padding: 8px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            border-bottom: 1px solid #333;
+        }
+
+        .suggestion-item:hover {
+            background: #333;
+            color: var(--accent-color);
         }
 
         .saved-lineup-item {
@@ -284,7 +311,7 @@
 
         <hr style="border-color: #333; margin: 20px 0;">
 
-        <!-- CATEGORY 3: WEEKLY CATEGORIES & AUTO-SUGGEST INPUTS -->
+        <!-- CATEGORY 3: WEEKLY CATEGORIES & CUSTOM SUGGESTIONS -->
         <h2>Weekly Categories</h2>
         <div style="display: flex; gap: 8px; margin-bottom: 15px;">
             <input type="text" id="new-category-name" placeholder="New Category (e.g., Special)" style="flex:1;">
@@ -294,9 +321,6 @@
         <div id="categories-container" class="categories-container">
             <!-- Dynamic Category Cards -->
         </div>
-
-        <!-- Global HTML5 Datalist for Firebase Song Suggestions -->
-        <datalist id="song-bank-datalist"></datalist>
 
         <hr style="border-color: #333; margin: 25px 0 15px 0;">
 
@@ -497,7 +521,6 @@
             }
             window.renderSongBank();
             window.renderCategories();
-            window.updateAutoSuggestDatalist();
         }, (error) => {
             statusEl.innerText = "⚠️ Firebase Sync Error";
             console.error(error);
@@ -526,12 +549,10 @@
                     cloudCategoryLinks[categoryName] = null;
                 } else {
                     const key = songTitle.trim().toLowerCase();
-                    // Kung wala pa sa Song Bank, awtomatiko itong mase-save gamit ang current BPM
                     if (!cloudSongBank[key]) {
                         cloudSongBank[key] = { title: songTitle.trim(), bpm: engine.bpm, beats: engine.beatsPerMeasure };
                         await setDoc(doc(db, "worship_data", "song_bank"), cloudSongBank);
                     }
-                    // Isasave ang kanta bilang permanent active lineup sa category na 'to
                     cloudCategoryLinks[categoryName] = {
                         title: songTitle.trim(),
                         bpm: cloudSongBank[key].bpm,
@@ -613,7 +634,6 @@
         const btnTapTempo = document.getElementById('btn-tap-tempo');
         const categoriesContainer = document.getElementById('categories-container');
         const songBankList = document.getElementById('song-bank-list');
-        const songDatalist = document.getElementById('song-bank-datalist');
 
         const tapManager = new TapTempoManager((bpm) => updateBpm(bpm));
 
@@ -670,16 +690,6 @@
         btnTogglePlay.addEventListener('click', togglePlayback);
         btnTapTempo.addEventListener('click', () => tapManager.tap());
 
-        window.updateAutoSuggestDatalist = function() {
-            songDatalist.innerHTML = '';
-            const bank = window.cloudStore ? window.cloudStore.getSongBank() : {};
-            Object.values(bank).forEach(song => {
-                const option = document.createElement('option');
-                option.value = song.title;
-                songDatalist.appendChild(option);
-            });
-        };
-
         window.renderCategories = function() {
             if (!window.cloudStore) return;
             categoriesContainer.innerHTML = '';
@@ -687,7 +697,7 @@
             const bank = window.cloudStore.getSongBank();
 
             Object.keys(links).forEach(category => {
-                const activeSong = links[category]; // Directly stores title, bpm, beats
+                const activeSong = links[category];
                 const currentTitleValue = activeSong ? activeSong.title : '';
 
                 const card = document.createElement('div');
@@ -713,32 +723,58 @@
                         <span>${category}</span>
                         ${deleteBtnHtml}
                     </div>
-                    <div class="category-input-row">
-                        <input type="text" id="song-input-${category}" list="song-bank-datalist" autocomplete="off" value="${currentTitleValue}" placeholder="I-type o pumili ng kanta..." oninput="autoFillSongData('${category}')">
+                    <div class="category-input-wrapper">
+                        <!-- Custom Searchable Input with Floating Dropdown Suggestions -->
+                        <input type="text" id="song-input-${category}" autocomplete="off" value="${currentTitleValue}" placeholder="I-type o pumili ng kanta..." oninput="filterSuggestions('${category}')" onfocus="filterSuggestions('${category}')">
                         <button class="btn-primary" onclick="saveCategorySong('${category}')" style="padding:6px 12px; font-size:13px;">Save</button>
+                        
+                        <div id="suggestions-${category}" class="suggestions-box"></div>
                     </div>
                     ${lineupHtml}
                 `;
                 categoriesContainer.appendChild(card);
             });
-            window.updateAutoSuggestDatalist();
         };
 
-        window.autoFillSongData = (category) => {
+        // Custom Floating Suggestions Filter
+        window.filterSuggestions = (category) => {
             const inputEl = document.getElementById(`song-input-${category}`);
+            const boxEl = document.getElementById(`suggestions-${category}`);
+            const query = inputEl.value.toLowerCase().trim();
             const bank = window.cloudStore.getSongBank();
-            const typedVal = inputEl.value.trim().toLowerCase();
             
-            Object.keys(bank).forEach(key => {
-                if (key === typedVal) {
-                    const song = bank[key];
+            boxEl.innerHTML = '';
+            const matches = Object.values(bank).filter(song => song.title.toLowerCase().includes(query));
+
+            if (matches.length === 0 || query === '') {
+                boxEl.style.display = 'none';
+                return;
+            }
+
+            matches.forEach(song => {
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                div.innerHTML = `<strong>${song.title}</strong> <span style="color:var(--text-dim); font-size:11px;">(${song.bpm} BPM)</span>`;
+                div.onclick = () => {
+                    inputEl.value = song.title;
+                    boxEl.style.display = 'none';
                     updateBpm(song.bpm);
                     engine.beatsPerMeasure = song.beats;
                     timeSigSelect.value = song.beats;
                     createBeatDots();
-                }
+                };
+                boxEl.appendChild(div);
             });
+
+            boxEl.style.display = 'block';
         };
+
+        // Itago ang suggestions kapag nag-click sa labas
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.category-input-wrapper')) {
+                document.querySelectorAll('.suggestions-box').forEach(box => box.style.display = 'none');
+            }
+        });
 
         window.saveCategorySong = async (category) => {
             const inputEl = document.getElementById(`song-input-${category}`);
@@ -816,7 +852,7 @@
         document.getElementById('btn-add-category').addEventListener('click', async () => {
             const input = document.getElementById('new-category-name');
             const catName = input.value.trim();
-            if (catName) {
+            if (catName != '') {
                 await window.cloudStore.addCategory(catName);
                 input.value = '';
             }
