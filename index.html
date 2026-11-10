@@ -184,7 +184,7 @@
 
         .saved-lineup-item {
             background: #1e1e1e;
-            padding: 6px 10px;
+            padding: 8px 10px;
             border-radius: 4px;
             display: flex;
             justify-content: space-between;
@@ -498,7 +498,6 @@
             window.renderSongBank();
             window.renderCategories();
             window.updateAutoSuggestDatalist();
-            statusEl.innerText = "☁️ Firebase Connected (Live Sync Active)";
         }, (error) => {
             statusEl.innerText = "⚠️ Firebase Sync Error";
             console.error(error);
@@ -509,6 +508,7 @@
                 cloudCategoryLinks = docSnap.data();
             }
             window.renderCategories();
+            statusEl.innerText = "☁️ Firebase Connected (Live Sync Active)";
         });
 
         window.cloudStore = {
@@ -526,12 +526,17 @@
                     cloudCategoryLinks[categoryName] = null;
                 } else {
                     const key = songTitle.trim().toLowerCase();
-                    // Kung wala pa sa bank, i-save muna natin automatic gamit ang kasalukuyang BPM
+                    // Kung wala pa sa Song Bank, awtomatiko itong mase-save gamit ang current BPM
                     if (!cloudSongBank[key]) {
                         cloudSongBank[key] = { title: songTitle.trim(), bpm: engine.bpm, beats: engine.beatsPerMeasure };
                         await setDoc(doc(db, "worship_data", "song_bank"), cloudSongBank);
                     }
-                    cloudCategoryLinks[categoryName] = key;
+                    // Isasave ang kanta bilang permanent active lineup sa category na 'to
+                    cloudCategoryLinks[categoryName] = {
+                        title: songTitle.trim(),
+                        bpm: cloudSongBank[key].bpm,
+                        beats: cloudSongBank[key].beats
+                    };
                 }
                 await setDoc(doc(db, "worship_data", "category_links"), cloudCategoryLinks);
             },
@@ -539,11 +544,6 @@
             async deleteSongFromBank(titleKey) {
                 delete cloudSongBank[titleKey];
                 await setDoc(doc(db, "worship_data", "song_bank"), cloudSongBank);
-
-                Object.keys(cloudCategoryLinks).forEach(cat => {
-                    if (cloudCategoryLinks[cat] === titleKey) cloudCategoryLinks[cat] = null;
-                });
-                await setDoc(doc(db, "worship_data", "category_links"), cloudCategoryLinks);
             },
 
             async addCategory(catName) {
@@ -687,8 +687,7 @@
             const bank = window.cloudStore.getSongBank();
 
             Object.keys(links).forEach(category => {
-                const selectedSongKey = links[category];
-                const activeSong = selectedSongKey ? bank[selectedSongKey] : null;
+                const activeSong = links[category]; // Directly stores title, bpm, beats
                 const currentTitleValue = activeSong ? activeSong.title : '';
 
                 const card = document.createElement('div');
@@ -698,9 +697,9 @@
                 if (activeSong) {
                     lineupHtml = `
                         <div class="saved-lineup-item" style="margin-top:6px;">
-                            <span>Naka-save: <strong>${activeSong.title}</strong> (${activeSong.bpm} BPM, ${activeSong.beats}/4)</span>
+                            <span>Current Lineup: <strong>${activeSong.title}</strong> (${activeSong.bpm} BPM, ${activeSong.beats}/4)</span>
                             <div>
-                                <button onclick="loadSong('${selectedSongKey}')" style="padding:3px 6px; font-size:11px;">Load BPM</button>
+                                <button onclick="loadCategorySong('${activeSong.bpm}', '${activeSong.beats}')" style="padding:3px 6px; font-size:11px;">Load BPM</button>
                             </div>
                         </div>
                     `;
@@ -715,7 +714,6 @@
                         ${deleteBtnHtml}
                     </div>
                     <div class="category-input-row">
-                        <!-- Searchable Text Input connected to Datalist for Auto-Suggest -->
                         <input type="text" id="song-input-${category}" list="song-bank-datalist" autocomplete="off" value="${currentTitleValue}" placeholder="I-type o pumili ng kanta..." oninput="autoFillSongData('${category}')">
                         <button class="btn-primary" onclick="saveCategorySong('${category}')" style="padding:6px 12px; font-size:13px;">Save</button>
                     </div>
@@ -726,7 +724,6 @@
             window.updateAutoSuggestDatalist();
         };
 
-        // Kapag nag-type o pumili mula sa suggestion, auto-load ang BPM kung nasa bank na
         window.autoFillSongData = (category) => {
             const inputEl = document.getElementById(`song-input-${category}`);
             const bank = window.cloudStore.getSongBank();
@@ -753,7 +750,14 @@
             await window.cloudStore.linkSongToCategory(category, title);
         };
 
-        window.loadSong = (songKey) => {
+        window.loadCategorySong = (bpm, beats) => {
+            updateBpm(parseInt(bpm));
+            engine.beatsPerMeasure = parseInt(beats);
+            timeSigSelect.value = beats;
+            createBeatDots();
+        };
+
+        window.loadSongFromBank = (songKey) => {
             const bank = window.cloudStore.getSongBank();
             const song = bank[songKey];
             if (song) {
@@ -793,7 +797,7 @@
                 li.innerHTML = `
                     <span><strong>${song.title}</strong> — ${song.bpm} BPM (${song.beats}/4)</span>
                     <div>
-                        <button onclick="loadSong('${key}')" style="padding:3px 6px; font-size:11px;">Load</button>
+                        <button onclick="loadSongFromBank('${key}')" style="padding:3px 6px; font-size:11px;">Load</button>
                         <button class="btn-danger" onclick="deleteBankSong('${key}')" style="padding:3px 6px; font-size:11px;">✕</button>
                     </div>
                 `;
