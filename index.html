@@ -133,12 +133,12 @@
         button.btn-danger { background-color: var(--accent-danger); }
         button.btn-tap { background-color: #0288d1; color: #fff; font-weight: bold; flex: 1; }
 
-        /* Category Cards */
+        /* Category Cards - Proportional Bar Layout */
         .categories-container {
-            margin-top: 20px;
+            margin-top: 15px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 14px;
         }
 
         .category-card {
@@ -160,14 +160,21 @@
         .category-input-wrapper {
             position: relative;
             display: flex;
-            gap: 6px;
-            margin-bottom: 8px;
+            gap: 8px;
+            align-items: center;
         }
 
         .category-input-wrapper input {
             flex: 1;
-            padding: 6px 10px;
-            font-size: 13px;
+            padding: 8px 12px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .category-input-wrapper button {
+            padding: 8px 16px;
+            font-size: 14px;
+            white-space: nowrap;
         }
 
         /* Custom Floating Dropdown Suggestions Box */
@@ -175,7 +182,7 @@
             position: absolute;
             top: 100%;
             left: 0;
-            right: 50px;
+            right: 75px;
             background: #222;
             border: 1px solid #555;
             border-radius: 4px;
@@ -206,6 +213,7 @@
             align-items: center;
             font-size: 13px;
             border-left: 3px solid var(--accent-color);
+            margin-top: 8px;
         }
 
         /* Song Bank Manager Section */
@@ -289,15 +297,17 @@
 
         <hr style="border-color: #333; margin: 20px 0;">
 
-        <!-- CATEGORY 3: WEEKLY CATEGORIES & SEARCH -->
+        <!-- CATEGORY 3: WEEKLY CATEGORIES (Fixed Order: Opening, Joyful, Solemn, Offering, Closing) -->
         <h2>Weekly Categories</h2>
-        <div style="display: flex; gap: 8px; margin-bottom: 15px;">
-            <input type="text" id="new-category-name" placeholder="New Category (e.g., Special)" style="flex:1;">
-            <button id="btn-add-category" class="btn-primary">+ Add Category</button>
-        </div>
 
         <div id="categories-container" class="categories-container">
-            <!-- Dynamic Category Cards -->
+            <!-- Dynamic Category Cards rendered in strict order -->
+        </div>
+
+        <!-- Add Category Section moved strictly to the bottom of categories -->
+        <div style="display: flex; gap: 8px; margin-top: 15px;">
+            <input type="text" id="new-category-name" placeholder="New Category (e.g., Special)" style="flex:1;">
+            <button id="btn-add-category" class="btn-primary">+ Add Category</button>
         </div>
 
         <hr style="border-color: #333; margin: 25px 0 15px 0;">
@@ -312,7 +322,7 @@
             </div>
 
             <ul id="song-bank-list" class="song-bank-list">
-                <!-- Dynamically populated song list from bank (Load button removed) -->
+                <!-- Dynamically populated song list from bank -->
             </ul>
         </div>
     </div>
@@ -643,7 +653,16 @@
             const links = window.cloudStore.getCategoryLinks();
             const bank = window.cloudStore.getSongBank();
 
-            Object.keys(links).forEach(category => {
+            // Strict Ordering: Opening, Joyful, Solemn, Offering, Closing, then any custom categories
+            const defaultOrder = ['Opening', 'Joyful', 'Solemn', 'Offering', 'Closing'];
+            const allKeys = Object.keys(links);
+            
+            const orderedCategories = [
+                ...defaultOrder.filter(cat => allKeys.includes(cat)),
+                ...allKeys.filter(cat => !defaultOrder.includes(cat))
+            ];
+
+            orderedCategories.forEach(category => {
                 const activeSong = links[category];
                 const currentTitleValue = activeSong ? activeSong.title : '';
 
@@ -653,7 +672,7 @@
                 let lineupHtml = '';
                 if (activeSong) {
                     lineupHtml = `
-                        <div class="saved-lineup-item" style="margin-top:6px;">
+                        <div class="saved-lineup-item">
                             <span>Current Lineup: <strong>${activeSong.title}</strong> (${activeSong.bpm} BPM, ${activeSong.beats}/4)</span>
                             <div>
                                 <button onclick="loadCategorySong('${activeSong.bpm}', '${activeSong.beats}')" style="padding:3px 6px; font-size:11px;">Load BPM</button>
@@ -662,7 +681,7 @@
                     `;
                 }
 
-                const isDefault = ['Opening', 'Joyful', 'Solemn', 'Offering', 'Closing'].includes(category);
+                const isDefault = defaultOrder.includes(category);
                 const deleteBtnHtml = !isDefault ? `<button class="btn-danger" onclick="deleteCategory('${category}')" style="padding:2px 6px; font-size:11px;">✕ Remove</button>` : '';
 
                 card.innerHTML = `
@@ -672,7 +691,7 @@
                     </div>
                     <div class="category-input-wrapper">
                         <input type="text" id="song-input-${category}" autocomplete="off" value="${currentTitleValue}" placeholder="I-type o pumili ng kanta..." oninput="filterSuggestions('${category}')" onfocus="filterSuggestions('${category}')">
-                        <button class="btn-primary" onclick="saveCategorySong('${category}')" style="padding:6px 12px; font-size:13px;">Save</button>
+                        <button class="btn-primary" onclick="saveCategorySong('${category}')">Save</button>
                         
                         <div id="suggestions-${category}" class="suggestions-box"></div>
                     </div>
