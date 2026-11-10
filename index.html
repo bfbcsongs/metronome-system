@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BFBC Metronome Pro - Firebase Cloud Sync</title>
+    <title>Worship Metronome Pro - Firebase Cloud Sync</title>
 
     <!-- ========================================== -->
     <!-- CATEGORY 1: CSS STYLES                     -->
@@ -397,26 +397,25 @@
     <!-- ========================================== -->
     <!-- CATEGORY 6: FIREBASE CLOUD & STORAGE SETUP -->
     <!-- ========================================== -->
-    <!-- Import Firebase SDK via CDN -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, setDoc, getDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // TODO: PAL, ILAGAY MO DITO YUNG FIREBASE CONFIG MULA SA CONSOLE MO
+        // Ginamit na ang iyong ibinigay na Firebase Config
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
+          apiKey: "AIzaSyA6yuHjPrn3SVsXeJSnA9gzJ6tHw9oGdnA",
+          authDomain: "mobile-presenter.firebaseapp.com",
+          databaseURL: "https://mobile-presenter-default-rtdb.asia-southeast1.firebasedatabase.app",
+          projectId: "mobile-presenter",
+          storageBucket: "mobile-presenter.firebasestorage.app",
+          messagingSenderId: "386403722965",
+          appId: "1:386403722965:web:bc2f61bf298e386718a45c",
+          measurementId: "G-HW2JKVEBJ6"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // State Store Cache
         let cloudSongBank = {};
         let cloudCategoryLinks = {
             'Opening': null,
@@ -428,7 +427,6 @@
 
         const statusEl = document.getElementById('sync-status');
 
-        // Real-time listener for Song Bank
         onSnapshot(doc(db, "worship_data", "song_bank"), (docSnap) => {
             if (docSnap.exists()) {
                 cloudSongBank = docSnap.data();
@@ -439,11 +437,10 @@
             window.updateAutoSuggestDatalist();
             statusEl.innerText = "☁️ Firebase Connected (Live Sync Active)";
         }, (error) => {
-            statusEl.innerText = "⚠️ Firebase Sync Error (Check Config)";
+            statusEl.innerText = "⚠️ Firebase Sync Error (Check Firestore Rules)";
             console.error(error);
         });
 
-        // Real-time listener for Category Links
         onSnapshot(doc(db, "worship_data", "category_links"), (docSnap) => {
             if (docSnap.exists()) {
                 cloudCategoryLinks = docSnap.data();
@@ -451,7 +448,6 @@
             window.renderCategories();
         });
 
-        // Global exposed cloud methods
         window.cloudStore = {
             getSongBank: () => cloudSongBank,
             getCategoryLinks: () => cloudCategoryLinks,
@@ -734,7 +730,6 @@
             }
         });
 
-        // Initialize App UI layout
         createBeatDots();
     </script>
 </body>
