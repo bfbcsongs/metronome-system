@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BFBC Metronome Pro - YouTube Auto-Detect</title>
+    <title>BFBC Metronome Pro - Cloud Synced</title>
 
     <!-- ========================================== -->
     <!-- CATEGORY 1: CSS STYLES                     -->
@@ -132,18 +132,6 @@
         button.btn-primary { background-color: var(--accent-color); color: #000; font-weight: bold; }
         button.btn-danger { background-color: var(--accent-danger); }
         button.btn-tap { background-color: #0288d1; color: #fff; font-weight: bold; flex: 1; }
-        button.btn-yt { background-color: #ff0000; color: #fff; font-weight: bold; }
-
-        /* YouTube Auto-Detect Section */
-        .yt-section {
-            background: #222;
-            border: 1px solid #444;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 20px;
-            width: 100%;
-            box-sizing: border-box;
-        }
 
         /* Category Cards */
         .categories-container {
@@ -182,7 +170,7 @@
             font-size: 13px;
         }
 
-        /* Custom Dropdown Suggestions Box */
+        /* Custom Floating Dropdown Suggestions Box */
         .suggestions-box {
             position: absolute;
             top: 100%;
@@ -258,16 +246,6 @@
         <h1>BFBC Metronome Pro</h1>
         <div id="sync-status" style="text-align: center; font-size: 11px; color: var(--accent-color); margin-bottom: 10px;">Connecting to Firebase Cloud...</div>
 
-        <!-- YouTube Link Paste & Auto-Detect Panel -->
-        <div class="yt-section">
-            <label style="display:block; margin-bottom: 6px; color: #ff5252; font-weight: bold;">YouTube Link Auto-Detect</label>
-            <div style="display: flex; gap: 6px; margin-bottom: 8px;">
-                <input type="text" id="yt-link-input" placeholder="Paste YouTube Link..." style="flex:1;">
-                <button class="btn-yt" onclick="processYouTubeLink()">Auto-Detect</button>
-            </div>
-            <div id="yt-detect-status" style="font-size: 12px; color: var(--text-dim); font-style: italic;">I-paste ang link ng kanta para masuri ang tempo at beats.</div>
-        </div>
-
         <div class="control-panel">
             <div class="bpm-display"><span id="bpm-text">120</span> <span style="font-size: 18px;">BPM</span></div>
             
@@ -311,7 +289,7 @@
 
         <hr style="border-color: #333; margin: 20px 0;">
 
-        <!-- CATEGORY 3: WEEKLY CATEGORIES & CUSTOM SUGGESTIONS -->
+        <!-- CATEGORY 3: WEEKLY CATEGORIES & SEARCH -->
         <h2>Weekly Categories</h2>
         <div style="display: flex; gap: 8px; margin-bottom: 15px;">
             <input type="text" id="new-category-name" placeholder="New Category (e.g., Special)" style="flex:1;">
@@ -334,14 +312,14 @@
             </div>
 
             <ul id="song-bank-list" class="song-bank-list">
-                <!-- Dynamically populated song list from bank -->
+                <!-- Dynamically populated song list from bank (Load button removed) -->
             </ul>
         </div>
     </div>
 
 
     <!-- ========================================== -->
-    <!-- CATEGORY 5: AUDIO ENGINE (SOUNDS & ACCENTS)-->
+    <!-- CATEGORY 5: AUDIO ENGINE                   -->
     <!-- ========================================== -->
     <script>
         class MetronomeAudioEngine {
@@ -447,42 +425,7 @@
 
 
     <!-- ========================================== -->
-    <!-- CATEGORY 6: YOUTUBE AUTO-DETECT ENGINE     -->
-    <!-- ========================================== -->
-    <script>
-        function processYouTubeLink() {
-            const linkInput = document.getElementById('yt-link-input');
-            const statusDiv = document.getElementById('yt-detect-status');
-            const url = linkInput.value.trim();
-
-            if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
-                alert('Mangyaring maglagay ng wastong YouTube link.');
-                return;
-            }
-
-            statusDiv.style.color = '#ffeb3b';
-            statusDiv.innerText = "⏳ Sinusuri ang audio frequency at tempo ng kanta...";
-
-            setTimeout(() => {
-                const detectedBpm = Math.floor(Math.random() * (140 - 70 + 1)) + 70;
-                const detectedBeats = [4, 4, 4, 3, 6][Math.floor(Math.random() * 5)];
-
-                updateBpm(detectedBpm);
-                document.getElementById('time-signature').value = detectedBeats;
-                engine.beatsPerMeasure = detectedBeats;
-                createBeatDots();
-
-                statusDiv.style.color = 'var(--accent-color)';
-                statusDiv.innerText = `✅ Tagumpay! Na-detect: ${detectedBpm} BPM (${detectedBeats}/4 Time Signature). I-save na sa ibaba!`;
-                
-                document.getElementById('new-bank-song-title').value = "YouTube Song (" + detectedBpm + " BPM)";
-            }, 1500);
-        }
-    </script>
-
-
-    <!-- ========================================== -->
-    <!-- CATEGORY 7: FIREBASE CLOUD & STORAGE SETUP -->
+    <!-- CATEGORY 6: FIREBASE CLOUD & STORAGE SETUP -->
     <!-- ========================================== -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -544,19 +487,23 @@
                 await setDoc(doc(db, "worship_data", "song_bank"), cloudSongBank);
             },
 
-            async linkSongToCategory(categoryName, songTitle) {
+            async linkSongToCategory(categoryName, songTitle, customBpm, customBeats) {
                 if (!songTitle.trim()) {
                     cloudCategoryLinks[categoryName] = null;
                 } else {
                     const key = songTitle.trim().toLowerCase();
+                    const finalBpm = customBpm !== undefined ? customBpm : engine.bpm;
+                    const finalBeats = customBeats !== undefined ? customBeats : engine.beatsPerMeasure;
+
                     if (!cloudSongBank[key]) {
-                        cloudSongBank[key] = { title: songTitle.trim(), bpm: engine.bpm, beats: engine.beatsPerMeasure };
+                        cloudSongBank[key] = { title: songTitle.trim(), bpm: finalBpm, beats: finalBeats };
                         await setDoc(doc(db, "worship_data", "song_bank"), cloudSongBank);
                     }
+
                     cloudCategoryLinks[categoryName] = {
                         title: songTitle.trim(),
-                        bpm: cloudSongBank[key].bpm,
-                        beats: cloudSongBank[key].beats
+                        bpm: finalBpm,
+                        beats: finalBeats
                     };
                 }
                 await setDoc(doc(db, "worship_data", "category_links"), cloudCategoryLinks);
@@ -583,7 +530,7 @@
 
 
     <!-- ========================================== -->
-    <!-- CATEGORY 8: TAP TEMPO ENGINE               -->
+    <!-- CATEGORY 7: TAP TEMPO ENGINE               -->
     <!-- ========================================== -->
     <script>
         class TapTempoManager {
@@ -622,7 +569,7 @@
 
 
     <!-- ========================================== -->
-    <!-- CATEGORY 9: MAIN APP BINDINGS & UI LOGIC   -->
+    <!-- CATEGORY 8: MAIN APP BINDINGS & UI LOGIC   -->
     <!-- ========================================== -->
     <script>
         const bpmText = document.getElementById('bpm-text');
@@ -724,7 +671,6 @@
                         ${deleteBtnHtml}
                     </div>
                     <div class="category-input-wrapper">
-                        <!-- Custom Searchable Input with Floating Dropdown Suggestions -->
                         <input type="text" id="song-input-${category}" autocomplete="off" value="${currentTitleValue}" placeholder="I-type o pumili ng kanta..." oninput="filterSuggestions('${category}')" onfocus="filterSuggestions('${category}')">
                         <button class="btn-primary" onclick="saveCategorySong('${category}')" style="padding:6px 12px; font-size:13px;">Save</button>
                         
@@ -736,7 +682,6 @@
             });
         };
 
-        // Custom Floating Suggestions Filter
         window.filterSuggestions = (category) => {
             const inputEl = document.getElementById(`song-input-${category}`);
             const boxEl = document.getElementById(`suggestions-${category}`);
@@ -769,7 +714,6 @@
             boxEl.style.display = 'block';
         };
 
-        // Itago ang suggestions kapag nag-click sa labas
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.category-input-wrapper')) {
                 document.querySelectorAll('.suggestions-box').forEach(box => box.style.display = 'none');
@@ -783,7 +727,7 @@
                 alert('Maglagay o pumili ng pamagat ng kanta.');
                 return;
             }
-            await window.cloudStore.linkSongToCategory(category, title);
+            await window.cloudStore.linkSongToCategory(category, title, engine.bpm, engine.beatsPerMeasure);
         };
 
         window.loadCategorySong = (bpm, beats) => {
@@ -791,17 +735,6 @@
             engine.beatsPerMeasure = parseInt(beats);
             timeSigSelect.value = beats;
             createBeatDots();
-        };
-
-        window.loadSongFromBank = (songKey) => {
-            const bank = window.cloudStore.getSongBank();
-            const song = bank[songKey];
-            if (song) {
-                updateBpm(song.bpm);
-                engine.beatsPerMeasure = song.beats;
-                timeSigSelect.value = song.beats;
-                createBeatDots();
-            }
         };
 
         window.addNewSongToBankFromInput = async () => {
@@ -833,7 +766,6 @@
                 li.innerHTML = `
                     <span><strong>${song.title}</strong> — ${song.bpm} BPM (${song.beats}/4)</span>
                     <div>
-                        <button onclick="loadSongFromBank('${key}')" style="padding:3px 6px; font-size:11px;">Load</button>
                         <button class="btn-danger" onclick="deleteBankSong('${key}')" style="padding:3px 6px; font-size:11px;">✕</button>
                     </div>
                 `;
@@ -852,7 +784,7 @@
         document.getElementById('btn-add-category').addEventListener('click', async () => {
             const input = document.getElementById('new-category-name');
             const catName = input.value.trim();
-            if (catName != '') {
+            if (catName !== '') {
                 await window.cloudStore.addCategory(catName);
                 input.value = '';
             }
