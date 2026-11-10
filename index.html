@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Church Floating Metronome with Lineup Categories</title>
+    <title>Worship Metronome Pro - Firebase Cloud Sync</title>
 
     <!-- ========================================== -->
     <!-- CATEGORY 1: CSS STYLES                     -->
@@ -31,7 +31,7 @@
 
         .app-container {
             width: 100%;
-            max-width: 520px;
+            max-width: 540px;
             background: var(--card-bg);
             border-radius: 12px;
             padding: 24px;
@@ -92,7 +92,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             width: 100%;
             justify-content: center;
         }
@@ -114,6 +114,8 @@
         .btn-group {
             display: flex;
             gap: 10px;
+            width: 100%;
+            justify-content: center;
         }
 
         button {
@@ -129,8 +131,9 @@
         button:hover { background-color: #444; }
         button.btn-primary { background-color: var(--accent-color); color: #000; font-weight: bold; }
         button.btn-danger { background-color: var(--accent-danger); }
+        button.btn-tap { background-color: #0288d1; color: #fff; font-weight: bold; flex: 1; }
 
-        /* Category Lineup Sections */
+        /* Category Cards */
         .categories-container {
             margin-top: 20px;
             display: flex;
@@ -158,6 +161,7 @@
             display: flex;
             gap: 6px;
             margin-bottom: 8px;
+            position: relative;
         }
 
         .category-input-row input {
@@ -177,25 +181,33 @@
             border-left: 3px solid var(--accent-color);
         }
 
-        /* Floating Overlay Window */
-        #floating-widget {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(18, 18, 18, 0.95);
-            border: 2px solid var(--accent-color);
-            border-radius: 10px;
-            padding: 8px 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            z-index: 9999;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.8);
-            cursor: move;
-            user-select: none;
+        /* Song Bank Manager Section */
+        .song-bank-container {
+            margin-top: 25px;
+            background: #181818;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
         }
 
-        #floating-widget.hidden { display: none; }
+        .song-bank-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0 0 0;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .song-bank-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #222;
+            padding: 8px 10px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
@@ -204,7 +216,8 @@
     <!-- CATEGORY 2: MAIN USER INTERFACE HTML       -->
     <!-- ========================================== -->
     <div class="app-container">
-        <h1>Weekly Lineup Metronome</h1>
+        <h1>Worship Metronome Pro</h1>
+        <div id="sync-status" style="text-align: center; font-size: 11px; color: var(--accent-color); margin-bottom: 10px;">Connecting to Firebase Cloud...</div>
 
         <div class="control-panel">
             <div class="bpm-display"><span id="bpm-text">120</span> <span style="font-size: 18px;">BPM</span></div>
@@ -214,56 +227,69 @@
 
             <input type="range" id="bpm-slider" min="30" max="300" value="120" style="width: 80%;">
             
-            <!-- Time Signature Selection -->
+            <!-- Settings Panel -->
             <div class="setting-group">
-                <label for="time-signature">Beats Per Measure:</label>
+                <label for="time-signature">Beats:</label>
                 <select id="time-signature">
-                    <option value="1">1/4 (No Accent)</option>
+                    <option value="1">1/4</option>
                     <option value="2">2/4</option>
                     <option value="3">3/4 (Waltz)</option>
-                    <option value="4" selected>4/4 (Standard)</option>
+                    <option value="4" selected>4/4</option>
                     <option value="5">5/4</option>
                     <option value="6">6/8</option>
                 </select>
+
+                <label for="sound-style" style="margin-left: 10px;">Sound:</label>
+                <select id="sound-style">
+                    <option value="digital" selected>Digital Beep</option>
+                    <option value="woodblock">Woodblock</option>
+                    <option value="cowbell">Cowbell</option>
+                    <option value="rimshot">Rimshot</option>
+                </select>
             </div>
 
+            <!-- Main Controls -->
             <div class="btn-group">
                 <button id="btn-minus-five">-5</button>
-                <button id="btn-toggle-play" class="btn-primary">START</button>
+                <button id="btn-toggle-play" class="btn-primary" style="flex: 2;">START</button>
                 <button id="btn-plus-five">+5</button>
             </div>
 
-            <button id="btn-toggle-overlay">Toggle Floating Mode</button>
+            <div class="btn-group">
+                <button id="btn-tap-tempo" class="btn-tap">TAP TEMPO</button>
+            </div>
         </div>
 
         <hr style="border-color: #333; margin: 20px 0;">
 
-        <!-- CATEGORY 3: WEEKLY LINEUP SECTIONS MANAGER -->
+        <!-- CATEGORY 3: WEEKLY CATEGORIES & AUTO-SUGGEST LINEUPS -->
         <h2>Weekly Categories</h2>
         <div style="display: flex; gap: 8px; margin-bottom: 15px;">
-            <input type="text" id="new-category-name" placeholder="New Category Name (e.g., Communion)" style="flex:1;">
+            <input type="text" id="new-category-name" placeholder="New Category (e.g., Special)" style="flex:1;">
             <button id="btn-add-category" class="btn-primary">+ Add Category</button>
         </div>
 
         <div id="categories-container" class="categories-container">
-            <!-- Dynamically populated category cards go here -->
+            <!-- Dynamic Category Cards -->
+        </div>
+
+        <!-- Global HTML5 Datalist for Auto-Suggest Search -->
+        <datalist id="song-bank-datalist"></datalist>
+
+        <hr style="border-color: #333; margin: 25px 0 15px 0;">
+
+        <!-- CATEGORY 4: CENTRAL SONG BANK MANAGEMENT -->
+        <div class="song-bank-container">
+            <h3 style="margin: 0 0 10px 0; font-size: 16px; color: var(--accent-color);">Song Bank Library (Cloud Synced)</h3>
+            <ul id="song-bank-list" class="song-bank-list">
+                <!-- Dynamically populated song list from bank -->
+            </ul>
         </div>
     </div>
 
 
     <!-- ========================================== -->
-    <!-- CATEGORY 4: FLOATING OVERLAY WIDGET HTML   -->
-    <!-- ========================================== -->
-    <div id="floating-widget" class="hidden">
-        <span style="color:#888;">⠿</span>
-        <span id="float-beat-num" style="color:var(--accent-active); font-weight:bold;">1</span>
-        <span id="float-bpm-text" style="font-weight: bold; color: var(--accent-color);">120 BPM</span>
-        <button id="btn-float-play" class="btn-primary">▶</button>
-    </div>
-
-
-    <!-- ========================================== -->
-    <!-- CATEGORY 5: AUDIO ENGINE (BEATS & ACCENTS) -->
+    <!-- CATEGORY 5: AUDIO ENGINE (SOUNDS & ACCENTS)-->
     <!-- ========================================== -->
     <script>
         class MetronomeAudioEngine {
@@ -275,6 +301,7 @@
                 this.currentBeat = 0;
                 this.nextNoteTime = 0.0;
                 this.timerID = null;
+                this.soundStyle = 'digital';
                 this.onBeatCallback = null;
             }
 
@@ -285,24 +312,50 @@
             }
 
             playClick(time, beatNumber) {
+                const isAccent = (beatNumber === 0 && this.beatsPerMeasure > 1);
                 const osc = this.audioCtx.createOscillator();
                 const gain = this.audioCtx.createGain();
 
-                osc.type = 'sine';
-                if (beatNumber === 0 && this.beatsPerMeasure > 1) {
-                    osc.frequency.setValueAtTime(1200, time); // High accent for beat 1
-                } else {
-                    osc.frequency.setValueAtTime(600, time);  // Normal tick
+                if (this.soundStyle === 'digital') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(isAccent ? 1200 : 600, time);
+                    gain.gain.setValueAtTime(1, time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
+                    osc.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+                    osc.start(time);
+                    osc.stop(time + 0.04);
+                } 
+                else if (this.soundStyle === 'woodblock') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(isAccent ? 1800 : 1200, time);
+                    gain.gain.setValueAtTime(1, time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.025);
+                    osc.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+                    osc.start(time);
+                    osc.stop(time + 0.025);
                 }
-
-                gain.gain.setValueAtTime(1, time);
-                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
-
-                osc.connect(gain);
-                gain.connect(this.audioCtx.destination);
-
-                osc.start(time);
-                osc.stop(time + 0.04);
+                else if (this.soundStyle === 'cowbell') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(isAccent ? 800 : 540, time);
+                    gain.gain.setValueAtTime(0.8, time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+                    osc.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+                    osc.start(time);
+                    osc.stop(time + 0.05);
+                }
+                else if (this.soundStyle === 'rimshot') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(isAccent ? 400 : 250, time);
+                    gain.gain.setValueAtTime(1, time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
+                    osc.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+                    osc.start(time);
+                    osc.stop(time + 0.03);
+                }
             }
 
             scheduler() {
@@ -342,75 +395,139 @@
 
 
     <!-- ========================================== -->
-    <!-- CATEGORY 6: STORAGE MANAGER (CATEGORIES)   -->
+    <!-- CATEGORY 6: FIREBASE CLOUD & STORAGE SETUP -->
     <!-- ========================================== -->
-    <script>
-        class LineupStore {
-            constructor() {
-                this.storageKey = 'church_metronome_categories_v1';
-                // Default categories requested by user
-                this.defaultCategories = ['Opening', 'Joyful', 'Solemn', 'Offering', 'Closing'];
-            }
+    <!-- Import Firebase SDK via CDN -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-            getData() {
-                const stored = localStorage.getItem(this.storageKey);
-                if (!stored) {
-                    // Initialize with defaults if empty
-                    const initial = {};
-                    this.defaultCategories.forEach(cat => initial[cat] = null); // 1 active lineup slot per week/category
-                    localStorage.setItem(this.storageKey, JSON.stringify(initial));
-                    return initial;
+        // TODO: PAL, ILAGAY MO DITO YUNG FIREBASE CONFIG MULA SA CONSOLE MO
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // State Store Cache
+        let cloudSongBank = {};
+        let cloudCategoryLinks = {
+            'Opening': null,
+            'Joyful': null,
+            'Solemn': null,
+            'Offering': null,
+            'Closing': null
+        };
+
+        const statusEl = document.getElementById('sync-status');
+
+        // Real-time listener for Song Bank
+        onSnapshot(doc(db, "worship_data", "song_bank"), (docSnap) => {
+            if (docSnap.exists()) {
+                cloudSongBank = docSnap.data();
+            } else {
+                cloudSongBank = {};
+            }
+            window.renderSongBank();
+            window.updateAutoSuggestDatalist();
+            statusEl.innerText = "☁️ Firebase Connected (Live Sync Active)";
+        }, (error) => {
+            statusEl.innerText = "⚠️ Firebase Sync Error (Check Config)";
+            console.error(error);
+        });
+
+        // Real-time listener for Category Links
+        onSnapshot(doc(db, "worship_data", "category_links"), (docSnap) => {
+            if (docSnap.exists()) {
+                cloudCategoryLinks = docSnap.data();
+            }
+            window.renderCategories();
+        });
+
+        // Global exposed cloud methods
+        window.cloudStore = {
+            getSongBank: () => cloudSongBank,
+            getCategoryLinks: () => cloudCategoryLinks,
+
+            async saveSongToBank(title, bpm, beats, categoryName) {
+                const key = title.trim().toLowerCase();
+                cloudSongBank[key] = { title: title.trim(), bpm, beats };
+                await setDoc(doc(db, "worship_data", "song_bank"), cloudSongBank);
+
+                if (categoryName) {
+                    cloudCategoryLinks[categoryName] = key;
+                    await setDoc(doc(db, "worship_data", "category_links"), cloudCategoryLinks);
                 }
-                return JSON.parse(stored);
-            }
+            },
 
-            saveLineup(category, songName, bpm, beats) {
-                const data = this.getData();
-                data[category] = { songName, bpm, beats, updatedAt: new Date().toLocaleDateString() };
-                localStorage.setItem(this.storageKey, JSON.stringify(data));
-            }
+            async deleteSongFromBank(titleKey) {
+                delete cloudSongBank[titleKey];
+                await setDoc(doc(db, "worship_data", "song_bank"), cloudSongBank);
 
-            addCategory(categoryName) {
-                const data = this.getData();
-                if (!data[categoryName]) {
-                    data[categoryName] = null;
-                    localStorage.setItem(this.storageKey, JSON.stringify(data));
+                Object.keys(cloudCategoryLinks).forEach(cat => {
+                    if (cloudCategoryLinks[cat] === titleKey) cloudCategoryLinks[cat] = null;
+                });
+                await setDoc(doc(db, "worship_data", "category_links"), cloudCategoryLinks);
+            },
+
+            async addCategory(catName) {
+                if (!cloudCategoryLinks[catName]) {
+                    cloudCategoryLinks[catName] = null;
+                    await setDoc(doc(db, "worship_data", "category_links"), cloudCategoryLinks);
                 }
-            }
+            },
 
-            removeCategory(categoryName) {
-                const data = this.getData();
-                delete data[categoryName];
-                localStorage.setItem(this.storageKey, JSON.stringify(data));
+            async removeCategory(catName) {
+                delete cloudCategoryLinks[catName];
+                await setDoc(doc(db, "worship_data", "category_links"), cloudCategoryLinks);
             }
-        }
-
-        const lineupStore = new LineupStore();
+        };
     </script>
 
 
     <!-- ========================================== -->
-    <!-- CATEGORY 7: DRAGGABLE FLOATING CONTROLLER  -->
+    <!-- CATEGORY 7: TAP TEMPO ENGINE               -->
     <!-- ========================================== -->
     <script>
-        const widget = document.getElementById('floating-widget');
-        let isDragging = false, offX = 0, offY = 0;
+        class TapTempoManager {
+            constructor(onBpmCalculated) {
+                this.tapTimes = [];
+                this.timeoutLimit = 2000;
+                this.onBpmCalculated = onBpmCalculated;
+            }
 
-        widget.addEventListener('mousedown', (e) => {
-            if (e.target.tagName === 'BUTTON') return;
-            isDragging = true;
-            offX = e.clientX - widget.offsetLeft;
-            offY = e.clientY - widget.offsetTop;
-        });
+            tap() {
+                const now = Date.now();
+                if (this.tapTimes.length > 0 && now - this.tapTimes[this.tapTimes.length - 1] > this.timeoutLimit) {
+                    this.tapTimes = [];
+                }
+                this.tapTimes.push(now);
 
-        document.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            widget.style.left = `${e.clientX - offX}px`;
-            widget.style.top = `${e.clientY - offY}px`;
-            widget.style.right = 'auto';
-        });
+                if (this.tapTimes.length > 6) {
+                    this.tapTimes.shift();
+                }
 
-        document.addEventListener('mouseup', () => isDragging = false);
+                if (this.tapTimes.length >= 2) {
+                    let intervals = [];
+                    for (let i = 1; i < this.tapTimes.length; i++) {
+                        intervals.push(this.tapTimes[i] - this.tapTimes[i - 1]);
+                    }
+                    const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+                    const calculatedBpm = Math.round(60000 / avgInterval);
+                    
+                    if (calculatedBpm >= 30 && calculatedBpm <= 300) {
+                        this.onBpmCalculated(calculatedBpm);
+                    }
+                }
+            }
+        }
     </script>
 
 
@@ -419,20 +536,22 @@
     <!-- ========================================== -->
     <script>
         const bpmText = document.getElementById('bpm-text');
-        const floatBpmText = document.getElementById('float-bpm-text');
-        const floatBeatNum = document.getElementById('float-beat-num');
         const bpmSlider = document.getElementById('bpm-slider');
         const timeSigSelect = document.getElementById('time-signature');
+        const soundStyleSelect = document.getElementById('sound-style');
         const visualizer = document.getElementById('beat-visualizer');
         const btnTogglePlay = document.getElementById('btn-toggle-play');
-        const btnFloatPlay = document.getElementById('btn-float-play');
+        const btnTapTempo = document.getElementById('btn-tap-tempo');
         const categoriesContainer = document.getElementById('categories-container');
+        const songBankList = document.getElementById('song-bank-list');
+        const songDatalist = document.getElementById('song-bank-datalist');
+
+        const tapManager = new TapTempoManager((bpm) => updateBpm(bpm));
 
         function updateBpm(newBpm) {
             const clamped = Math.min(Math.max(newBpm, 30), 300);
             engine.bpm = clamped;
             bpmText.innerText = clamped;
-            floatBpmText.innerText = `${clamped} BPM`;
             bpmSlider.value = clamped;
         }
 
@@ -455,7 +574,6 @@
                     dot.classList.remove('active', 'first-beat');
                 }
             });
-            floatBeatNum.innerText = beatIndex + 1;
         };
 
         timeSigSelect.addEventListener('change', (e) => {
@@ -463,53 +581,63 @@
             createBeatDots();
         });
 
+        soundStyleSelect.addEventListener('change', (e) => engine.soundStyle = e.target.value);
+
         function togglePlayback() {
             if (engine.isPlaying) {
                 engine.stop();
                 btnTogglePlay.innerText = 'START';
                 btnTogglePlay.classList.remove('btn-danger');
-                btnFloatPlay.innerText = '▶';
             } else {
                 engine.start();
                 btnTogglePlay.innerText = 'STOP';
                 btnTogglePlay.classList.add('btn-danger');
-                btnFloatPlay.innerText = '⏸';
             }
         }
 
-        // Global Event Listeners
         bpmSlider.addEventListener('input', (e) => updateBpm(parseInt(e.target.value)));
         document.getElementById('btn-minus-five').addEventListener('click', () => updateBpm(engine.bpm - 5));
         document.getElementById('btn-plus-five').addEventListener('click', () => updateBpm(engine.bpm + 5));
         btnTogglePlay.addEventListener('click', togglePlayback);
-        btnFloatPlay.addEventListener('click', togglePlayback);
-        document.getElementById('btn-toggle-overlay').addEventListener('click', () => widget.classList.toggle('hidden'));
+        btnTapTempo.addEventListener('click', () => tapManager.tap());
 
-        // Render Categories & Weekly Lineup Slots
-        function renderCategories() {
+        window.updateAutoSuggestDatalist = function() {
+            songDatalist.innerHTML = '';
+            const bank = window.cloudStore ? window.cloudStore.getSongBank() : {};
+            Object.values(bank).forEach(song => {
+                const option = document.createElement('option');
+                option.value = song.title;
+                songDatalist.appendChild(option);
+            });
+        };
+
+        window.renderCategories = function() {
+            if (!window.cloudStore) return;
             categoriesContainer.innerHTML = '';
-            const data = lineupStore.getData();
+            const links = window.cloudStore.getCategoryLinks();
+            const bank = window.cloudStore.getSongBank();
 
-            Object.keys(data).forEach(category => {
-                const lineup = data[category];
+            Object.keys(links).forEach(category => {
+                const songKey = links[category];
+                const song = songKey ? bank[songKey] : null;
+
                 const card = document.createElement('div');
                 card.className = 'category-card';
 
                 let lineupHtml = '';
-                if (lineup) {
+                if (song) {
                     lineupHtml = `
                         <div class="saved-lineup-item">
-                            <span><strong>${lineup.songName}</strong> (${lineup.bpm} BPM, ${lineup.beats}/4)</span>
+                            <span><strong>${song.title}</strong> (${song.bpm} BPM, ${song.beats}/4)</span>
                             <div>
-                                <button onclick="loadLineup('${category}')" style="padding:4px 8px; font-size:12px;">Load</button>
+                                <button onclick="loadSong('${song.title.replace(/'/g, "\\'")}')" style="padding:4px 8px; font-size:12px;">Load</button>
                             </div>
                         </div>
                     `;
                 } else {
-                    lineupHtml = `<div style="font-size:12px; color:var(--text-dim); font-style:italic;">No song saved for this week yet.</div>`;
+                    lineupHtml = `<div style="font-size:12px; color:var(--text-dim); font-style:italic;">No song linked yet.</div>`;
                 }
 
-                // Do not allow deleting core default categories if desired, or allow all. Let's make user custom categories removable.
                 const isDefault = ['Opening', 'Joyful', 'Solemn', 'Offering', 'Closing'].includes(category);
                 const deleteBtnHtml = !isDefault ? `<button class="btn-danger" onclick="deleteCategory('${category}')" style="padding:2px 6px; font-size:11px;">✕ Remove</button>` : '';
 
@@ -519,56 +647,95 @@
                         ${deleteBtnHtml}
                     </div>
                     <div class="category-input-row">
-                        <input type="text" id="song-name-${category}" placeholder="Song Title for this week">
-                        <button class="btn-primary" onclick="saveCategoryLineup('${category}')" style="padding:6px 12px; font-size:13px;">Save</button>
+                        <input type="text" id="song-input-${category}" list="song-bank-datalist" placeholder="Search or Type Song Title..." oninput="autoFillSongData('${category}')">
+                        <button class="btn-primary" onclick="saveSongFromCategory('${category}')" style="padding:6px 12px; font-size:13px;">Save</button>
                     </div>
                     ${lineupHtml}
                 `;
                 categoriesContainer.appendChild(card);
             });
-        }
-
-        window.saveCategoryLineup = (category) => {
-            const input = document.getElementById(`song-name-${category}`);
-            const songName = input.value.trim();
-            if (!songName) {
-                alert('Please enter a song title.');
-                return;
-            }
-            lineupStore.saveLineup(category, songName, engine.bpm, engine.beatsPerMeasure);
-            input.value = '';
-            renderCategories();
+            window.updateAutoSuggestDatalist();
         };
 
-        window.loadLineup = (category) => {
-            const data = lineupStore.getData();
-            const lineup = data[category];
-            if (lineup) {
-                updateBpm(lineup.bpm);
-                engine.beatsPerMeasure = lineup.beats;
-                timeSigSelect.value = lineup.beats;
+        window.autoFillSongData = (category) => {
+            const input = document.getElementById(`song-input-${category}`);
+            const bank = window.cloudStore.getSongBank();
+            const songKey = input.value.trim().toLowerCase();
+            if (bank[songKey]) {
+                updateBpm(bank[songKey].bpm);
+                engine.beatsPerMeasure = bank[songKey].beats;
+                timeSigSelect.value = bank[songKey].beats;
                 createBeatDots();
             }
         };
 
-        window.deleteCategory = (category) => {
-            lineupStore.removeCategory(category);
-            renderCategories();
+        window.saveSongFromCategory = async (category) => {
+            const input = document.getElementById(`song-input-${category}`);
+            const title = input.value.trim();
+            if (!title) {
+                alert('Please type a song title.');
+                return;
+            }
+            await window.cloudStore.saveSongToBank(title, engine.bpm, engine.beatsPerMeasure, category);
+            input.value = '';
         };
 
-        document.getElementById('btn-add-category').addEventListener('click', () => {
+        window.loadSong = (title) => {
+            const bank = window.cloudStore.getSongBank();
+            const songKey = title.trim().toLowerCase();
+            if (bank[songKey]) {
+                updateBpm(bank[songKey].bpm);
+                engine.beatsPerMeasure = bank[songKey].beats;
+                timeSigSelect.value = bank[songKey].beats;
+                createBeatDots();
+            }
+        };
+
+        window.renderSongBank = function() {
+            if (!window.cloudStore) return;
+            songBankList.innerHTML = '';
+            const bank = window.cloudStore.getSongBank();
+            const keys = Object.keys(bank);
+
+            if (keys.length === 0) {
+                songBankList.innerHTML = `<li style="font-size:12px; color:var(--text-dim); font-style:italic;">Song bank is empty. Save songs above!</li>`;
+                return;
+            }
+
+            keys.forEach(key => {
+                const song = bank[key];
+                const li = document.createElement('li');
+                li.className = 'song-bank-item';
+                li.innerHTML = `
+                    <span><strong>${song.title}</strong> — ${song.bpm} BPM (${song.beats}/4)</span>
+                    <div>
+                        <button onclick="loadSong('${song.title.replace(/'/g, "\\'")}')" style="padding:3px 6px; font-size:11px;">Load</button>
+                        <button class="btn-danger" onclick="deleteBankSong('${key}')" style="padding:3px 6px; font-size:11px;">✕</button>
+                    </div>
+                `;
+                songBankList.appendChild(li);
+            });
+        };
+
+        window.deleteBankSong = async (key) => {
+            await window.cloudStore.deleteSongFromBank(key);
+        };
+
+        window.deleteCategory = async (category) => {
+            await window.cloudStore.removeCategory(category);
+        };
+
+        document.getElementById('btn-add-category').addEventListener('click', async () => {
             const input = document.getElementById('new-category-name');
             const catName = input.value.trim();
             if (catName) {
-                lineupStore.addCategory(catName);
+                await window.cloudStore.addCategory(catName);
                 input.value = '';
-                renderCategories();
             }
         });
 
-        // Initialize App UI
+        // Initialize App UI layout
         createBeatDots();
-        renderCategories();
     </script>
 </body>
 </html>
